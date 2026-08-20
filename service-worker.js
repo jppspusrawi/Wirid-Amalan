@@ -1,43 +1,49 @@
-const CACHE_NAME = "himpunan-zikir-wirid-v3";
+const CACHE = 'wirid-hizib-v1';
 const ASSETS = [
-  "./",
-  "./index.html",
-  "./manifest.json",
-  "./icon-192.png",
-  "./icon-512.png",
-  "./icon-maskable-512.png",
-  "./apple-touch-icon-180.png",
-  "./favicon-32.png"
+  './',
+  './index.html',
+  './manifest.json',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
 ];
 
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
-  );
+self.addEventListener('install', e => {
   self.skipWaiting();
-});
-
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+  e.waitUntil(
+    caches.open(CACHE).then(c => c.addAll(ASSETS)).catch(() => {})
   );
-  self.clients.claim();
 });
 
-self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET") return;
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-          return response;
-        })
-        .catch(() => cached);
-    })
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;
+  const url = new URL(e.request.url);
+  // Audio: network-first so large files aren't force-cached, fall back to cache
+  if (url.pathname.endsWith('.mp3')) {
+    e.respondWith(
+      fetch(e.request).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
+        return res;
+      }).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+  // Everything else: cache-first, then network
+  e.respondWith(
+    caches.match(e.request).then(hit =>
+      hit || fetch(e.request).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
+        return res;
+      }).catch(() => caches.match('./index.html'))
+    )
   );
 });
