@@ -1,17 +1,15 @@
-const CACHE = 'wirid-hizib-v1';
+const CACHE = 'wirid-hizib-v2';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 self.addEventListener('install', e => {
   self.skipWaiting();
-  e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(ASSETS)).catch(() => {})
-  );
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).catch(() => {}));
 });
 
 self.addEventListener('activate', e => {
@@ -25,7 +23,6 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
-  // Audio: network-first so large files aren't force-cached, fall back to cache
   if (url.pathname.endsWith('.mp3')) {
     e.respondWith(
       fetch(e.request).then(res => {
@@ -36,7 +33,6 @@ self.addEventListener('fetch', e => {
     );
     return;
   }
-  // Everything else: cache-first, then network
   e.respondWith(
     caches.match(e.request).then(hit =>
       hit || fetch(e.request).then(res => {
